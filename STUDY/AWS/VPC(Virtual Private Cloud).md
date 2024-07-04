@@ -1,5 +1,5 @@
 # VPC(Virtual Private Cloud)
----
+
 ![](https://i.imgur.com/6HySO3B.png)
 
 - 독립적인 가상의 네트워크 공간으로, 사용자의 설정에 따라 AWS 리소스를 이용해 자유롭게 구성할 수 있음
@@ -7,6 +7,7 @@
 
 
 ### 📌 기능
+---
 1) VPC (Virtual Private Cloud)
 	\- 자체 데이터 센터에서 운영하는 기존 네트워크와 유사한 가상 네트워크
 	\- VPC 생성 후 서브넷 추가 가능
