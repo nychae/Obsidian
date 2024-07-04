@@ -14,7 +14,8 @@
 
 ### AWS 기본 구성도
 ---
-![[Pasted image 20240701153806.png]]
+![](https://i.imgur.com/XR0sD4q.png)
+
 1. Route53이 도메인에 대한 응답
 2. 서버 EC2로 접속
 3. 로컬 디스크인 EBS에서 데이터 읽음
