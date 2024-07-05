@@ -1,8 +1,5 @@
 # VPC(Virtual Private Cloud)
 
-INDEX
-[1](#-vpc를-구성하기-위한-기능)
-[2](#-vpc-작동방식)
 
 ![](https://i.imgur.com/6HySO3B.png)
 
