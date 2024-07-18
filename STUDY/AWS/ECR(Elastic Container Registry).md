@@ -69,11 +69,12 @@ docker pull <계정 ID>.dkr.ecr.<region 명>.amazonaws.com/<레포지토리 명>
  \- IAM 역할 생성 및 정책 연결
 
 **3. Kubernetes 매니페스트 파일 작성**
+\- ECR에서 이미지를 가져와서 사용할 수 있도록 Kubernetes 매니페스트 파일 작성
 
 ```` ad-info
 title: 쿠버네티스 매니페스트 파일(Kubernetes Manifeset File)
 color: 255, 255, 255
-collapse: open
+collapse: close
 
 - 쿠버네티스 매니페스트 파일(Kubernetes Manifest File)
 	\- 쿠버네티스 리소스를 정의하고 설정하기 위한 YAML 또는 JSON파일
@@ -119,6 +120,261 @@ apiVersion: <API 버전>
 kind: Deployment
 metadata:
 	name: <Deployment 이름>
+	labels:
+		app: <Deployment에 대한 레이블>
+spec: #Deployment의 사양
+	replicas: <원하는 Pod의 수>
+	selector: #관리할 Pod를 선택하는 레이블 셀렉터
+		matchLabels:
+			app: <애플리케이션 이름>
+	template: #Pod의 템플릿 정의
+		metadata: #Pod에 대한 메타데이터
+			labels:
+				app: <애플리케이션 이름>
+		spec: #Pod의 사양(컨테이너 정의 등)
+			containers: #Pod내에서 실행될 컨테이너 정의
+				- name: <컨테이너 이름>
+				  image: <사용할 Docker 이미지 이름>
+				  ports:
+					  - containerPort: <포트번호>
 	
 ```
+
+3. Service 매니페스트 파일
+``` yaml
+apiVersion: <API 버전>
+kind: Service
+metadata: #Service의 메타데이터
+	name: <Service 이름>
+spec: #Service의 사양
+	selector: # Service가 연결할 Pod를 선택하는 레이블 셀렉터
+		app: <애플리케이션 이름>
+	ports: # Service에서 노출할 포트 정보
+	- protocal: <사용할 프로토콜> # ex. TCP, UDP
+	  port: <클러스터 내부에서 Service가 노출하는 포트>
+	  targetPort: <Pod 내 컨테이너에서 사용하는 포트>
+	type: <서비스 유형> # ex. ClusterIP(default), NodePort, LoadBalancer
+```
 ````
+
+**4. 매니페스트 파일 적용**
+\- kubectl을 사용해 매니페스트 파일을 클러스터에 적용
+``` sh
+kubectl apply -f deployment.yaml
+kubectl apply -f serivce.yaml
+```
+
+**5. 배포 상태 확인**
+\- 배포 상태를 확인해 애플리케이션이 올바르게 배포되었는지 확인
+```sh
+kubectl get pods
+kubectl get svc
+```
+
+**6.External IP로 접속**
+
+
+### 📌 CI/CD 파이프라인 구축
+---
+`CI/CD 파이프라인 - 코드 변경 사항을 자동으로 빌드, 테스트, 배포하는데 사용`
+
+##### 🏷️ AWS CodePipeline
+
+- 전체 파이프라인 개요
+	1. 코드 저장소
+		\- 코드 변경 사항을 관리하기 위한 GitHub, AWS CodeCommit 등
+	2. 빌드 및 테스트
+		\- AWS CodeBuild를 사용해 Docker 이미지를 빌드하고 테스트
+	3. 이미지 푸시
+		\- 빌드된 Docker 이미지를 ECR에 푸시
+	4. 배포
+		\- AWS CodeDeploy 또는 Kubernetes(EKS)를 사용해 이미지 배포
+
+
+**1) ECR 저장소 생성**
+\- ECR 저장소를 생성해 Docker 이미지 저장
+
+**2) CodeCommit 저장소 생성** (또는 GitHub 저장소 사용)
+\- CodeCommit 저장소를 생성해 소스 코드를 저장
+
+**3) CodeBuild 프로젝트 설정**
+\- CodeBuild 프로젝트를 생성해 Docker 이미지를 빌드하고 ECR에 푸시
+
+```` ad-info
+title: CodeBuild 프로젝트 생성
+collapse: close
+
+1. AWS Management Console에서 CodeBuild로 이동
+2. 프로젝트 생성 클릭
+3. 프로젝트 이름 입력후, 소스 공급자로 CodeCommit (또는 GitHub) 선택
+4. 환경 설정에서 Docker이미지를 선택하고 관리혈 이미지로 설정
+5. 빌드 사양에서 buildspec.yaml 파일을 사용하도록 설정
+	\- buildspec.yaml
+``` yaml
+version: <버전>
+
+phases:
+	pre_build:
+		commands:
+			- echo Logging in to Amazon ECR
+			- aws ecr get-login-password --region <리전 명> | docker login --username AWS --password-stdin <계정 ID>.dkr.ecr.<리전 명>.amazonaws.com
+	build:
+		commands:
+			- echo Build started on `date`
+			- echo Building the Docker image...
+			- docker build -t <레포지토리 명>
+			- docker tag <이미지 명>:<태그 명> <계정 ID>.dkr.ecr.<리전 명>.amazonaws.com/<레포지토리명>:<태그 명>
+	post_build:
+		commands:
+			- echo Build completed on `date`
+			- echo Pushing the Docker image...
+			- docker push <계정 ID>.dkr.ecr.<리전 명>.amazonaws.com/<레포지토리 명>:<태그 명>
+```
+````
+
+**4) CodePipeline 설정**
+\- CodePipeline을 사용해 전체 CI/CD 파이프라인 정의
+
+``` ad-info
+title: CodePipeline 생성
+collapse: close
+
+1. AWS Management Console에서 CodePipeline으로 이동
+2. 파이프라인 생성 클릭
+3. 파이프라인 이름 입력 후, 새 서비스 역할을 설정하도록 설정
+4. 소스 단계에서 CodeCommit (또는 GitHub)을 선택하고 저장소와 브랜치 지정
+5. 빌드 단계에서 CodeBuild 프로젝트 선택
+6. 배포 단계에서 배포 공급자로 AWS CodeDeploy 또는 EKS 선택
+
+```
+
+\- 배포를 자동화 하기 위해 CodePipeline에서 CodeBuild 프로젝트를 사용해 Kubernetes 클러스터에 배포
+`buildspec.yaml`
+``` yaml
+version: <버전>
+
+phases:
+	pre_build:
+		commands:
+			- echo Logging in to Amazon ECR
+			- aws ecr get-login-password --region <리전 명> | docker login --username AWS --password-stdin <계정 ID>.dkr.ecr.<리전 명>.amazonaws.com
+			- kubectl config use-context arn:aws:eks:<리전 명>:<계정 ID>:cluster/<클러스터 명>
+	build:
+		commands:
+			- echo Build started on `date`
+			- echo Building the Docker image...
+			- docker build -t <레포지토리 명>
+			- docker tag <이미지 명>:<태그 명> <계정 ID>.dkr.ecr.<리전 명>.amazonaws.com/<레포지토리명>:<태그 명>
+	post_build:
+		commands:
+			- echo Build completed on `date`
+			- echo Pushing the Docker image...
+			- docker push <계정 ID>.dkr.ecr.<리전 명>.amazonaws.com/<레포지토리 명>:<태그 명>
+			- echo Deploying to Kubernetes cluster...
+			- kubectl apply -f deployment.yaml
+```
+
+##### 🏷️Jenkins
+**1) Jenkins 설정**
+
+**2) Jenkins 플러그인 설치**
+\- Jenkins 플러그인을 설치해 AWS와 Docker 통합
+```ad-info
+title: Jenkins 플러그인 설치
+collapse: close
+1. Jenkins Dashboard로 이동
+2. Manage Jenkins > Manage Plugins
+3. Available 탭에서 플러그인 설치
+	- Amazon EC2
+	- Amazon ECR
+	- Docker Pipeline
+	- Kubernetes CLI
+	- Pipeline: AWS Steps
+```
+
+**3) Jenkins 파이프라인 구성**
+\- Jenkins 파이프라인을 구성해 Docker 이미지를 빌드하고
+1. Jenkins 플러그인 설치 : Jenkins에 AWS ECR 플러그인 설치
+2. 빌드 스크립트 작성 : Jenkins 파이프라인 스크립트에서 Docker 이미지를 빌드하고 ECR에 푸시하는 단계 추가
+
+**4) ECR에 Docker 이미지 푸시**
+\- Jenkins 파이프라인이 성공적으로 실행되면 Docker이미지를 ECR에 푸시
+\- Jenkinsfile의 `Push To ECR`단계
+
+**5) EKS에 배포**
+\- Jenkins 파이프라인이 ECR에 이미지를 푸시한 후, EKS 클러스터에 이미지를 배포
+\- Jenkinsfile의 `Deploy to EKS`단계
+
+	`Jenkinsfile`
+``` groovy
+pipeline {
+	agent any
+	environment {
+		AWS_REGION = '<리전 명>'
+		ECR_REPO_NAME = '<레포지토리 명>'
+		ECR_REGISTRY = '<계정 ID>.dkr.ect.<리전 명>.amazonaws.com'
+		IMAGE_TAG = '<태그 명>'
+		AWS_CREDENTIALS_ID = '<JENKINS에 저장된 AWS 자격증명 ID>'
+		KUBE_CONFIG = crendentials(')
+	}
+
+	stages {
+		stage('Checkout') {
+			steps {
+				// 소스 코드 체크아웃
+				git '<git 주소>'
+			}
+		}
+		
+		stage('Build') {
+			steps {
+				script {
+					// Docker 이미지 빌드
+					sh "docker build -t ${ECR_REPO}:${IMAGE_TAG} ."
+				}
+			}
+		}
+
+		stage('Login to ECR') {
+			steps {
+				script {
+					// AWS CLI를 사용해서 ECR에 로그인
+					withCredentials([[$class: 'AmazonWebServiceCredentials', crendentialsId: AWS_CREDENTIALS_ID]]) {
+						sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REPO}"
+					}
+				}
+			}
+		}
+
+		stage('Push to ECR') {
+			steps {
+				script {
+					// Docker 이미지 ECR에 푸시
+					sh "docker push ${ECR_REPO}:${IMAGE_TAG}"
+				}
+			}
+		}
+
+		stage('Deploy to EKS') {
+			steps {
+				script {
+					withCredentials([[$class: 'AmazonWebServiceCredentials', crendentialsId: AWS_CREDENTIALS_ID]]) {
+						sh 'kubectl apply -f deployment.yaml'
+					}
+				}
+			}
+		}
+	}
+
+	post {
+		success {
+			echo 'Build and Push to ECR succeeded!'
+		}
+		failure {
+			echo 'Build or Push to ECR failed'
+		}
+	}
+
+}
+```
+
