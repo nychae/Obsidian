@@ -105,7 +105,7 @@ kubectl apply -f [YAML 파일명 of URL]
 ```
 
 ##### 🏷️ get
-- 리소스 목록 조회
+- 하나 이상의 리소스 목록 조회
 - 주요 TYPE : pods, nodes, deployments, replicasets, services
 - flags:
 	-o wide -> 더 많은 정보 조회
@@ -113,15 +113,78 @@ kubectl apply -f [YAML 파일명 of URL]
 
 ``` sh
 kubectl get [TYPE] [NAME] [flags]
+
+# TYPE에 해당하는 목록을 일반 텍스트 출력 형식으로 나열
+# 여러개의 TYPE 나열 가능
+kubectl get [TYPE1(, TYPE2, ...)]
+
+# TYPE에 해당하는 목록을 일반 텍스트 출력 형식으로 나열하고 추가 정보(ex. 노드 이름)를 포함
+kubectl get [TYPE] -o wide
+
+# NAME에 해당하는 TYPE을 일반 텍스트 출력 형식으로 나열
+kubectl get [TYPE] [NAME]
 ```
 
 ##### 🏷️ describe
 - 리소스의 자세한 상태 표시
 - 리소스의 상세 정보나 상태, 실패한 이유를 확인할 때 주로 사용
+
 ``` sh
-kubectl describe [TYPE 또는 NAME] 
-
-또는
-
+# NAME에 해당하는 TYPE의 세부사항 표시
 kubectl describe [TYPE] [NAME]
+ 또는
+kubectl describe [TYPE]/[NAME]
+
+# 모든 TYPE의 정보 표시
+kubectl describe [TYPE]
+```
+
+##### 🏷️ delete
+- 리소스 제거
+
+``` sh
+# 파일에 지정된 타입과 이름을 사용하여 삭제
+kubectl delete -f [파일명.확장자]
+
+# <labe-key> = <label-value> 레이블이 있는 모든 타입 삭제
+kubectl delete [TYPE1(, TYPE2, ...)] -l <label-key> = <label-value> 
+
+# 초기화 되지 않은 타입 포함 모든 타입 삭제
+kubectl delete [TYPE] --all
+```
+
+##### 🏷️ logs
+- 파드의 컨테이너에 대한 로그 출력
+
+``` sh
+# NAME에 해당하는 pod에서 로그의 스냅샷 표시
+kubectl logs [NAME]
+
+# NAME에 해당하는 pod에서 로그 스트리밍 시작 (리눅스의 'tail -f'와 비슷)
+kubectl logs -f [NAME]
+```
+
+##### 🏷️ exec
+- 파드의 컨테이너에 대해 명령 실행
+
+``` sh
+# NAME에 해당하는 pod에서 date를 실행한 결과 표시 (기본적으로 첫번째 컨테이너에서 출력)
+kubectl exec [NAME] -- date
+
+# NAME에 해당하는 pod의 특정 컨테이너에서 date를 실행한 결과 표시
+kubectl exec [NAME] -c [container-name] -- date
+
+# NAME에 해당하는 pod에서 대화식 TTY를 연결해 /bin/bash 실행 (기본적으로 첫번째 컨테이너에서 출력)
+kubectl exec -it [NAME] -- /bin/bash
+```
+
+##### 🏷️ diff
+- 라이브 구성에 대해 파일이나 표준입력의 차이점 출력
+
+``` sh
+# 파일에 포함된 리소스의 차이점 출력
+kubectl diff -f <파일명.확장자>
+
+# 표준입력에서 파일을 읽어 차이점 출력
+cat <파일명.확장자> | kubectl diff -f -
 ```
