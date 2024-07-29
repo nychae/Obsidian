@@ -137,6 +137,32 @@ spec: #Deployment의 사양
 				  image: <사용할 Docker 이미지 이름>
 				  ports:
 					  - containerPort: <포트번호>
+				  livenessProbe: # 정상적으로 동작하고 있는지 확인하는데 사용됨
+					  # 첫번째 방식(HTTP GET): 특정 HTTP 엔드포인트로 GET요청을 보내고, 
+											  응답코드 확인
+					  httpGet:
+						  path: <헬스체크 경로>
+						  port: <포트 번호>
+					  # 두번째 방식(TCP Socket): 특정 포트로 TCP 연결을 시도해 성공여부 확인
+					  tcpSocket:
+						  port: <포트 번호>
+					  # 세번째 방식(Exec): 컨테이너 내부에서 특정 명령을 실행해 결과를 확인
+					  exec:
+						  command:
+							  - <명령어>
+					  # 설정 옵션
+					  initialDeplySeconds: <초> # Pod가 실행되고 몇 초 후 첫번째 Probe를 실행할지 
+												  지정
+					  periodSeconds: <초> # Probe를 실행하는 주기 지정
+					  timeoutSeconds: <초> # Probe의 타임아웃 시간 설정
+					  successThreshold: <횟수> # 연속적으로 성공해야 하는 Probe 횟수 지정
+					  failureThreshold: <횟수> # 연속적으로 실패해야 하는 Probe 횟수 지정, 
+												  이 횟수 초과시 Pod 재시작
+				  readinessProbe: # Pod가 클라이언트 요청을 처리할 준비가 되었는지 확인
+									실패시 해당 Pod는 서비스의 로드 밸런서에서 제거됨
+					  # livenessProbe와 같은 세 가지 방식(HTTP GET, TCP Socket, Exec)사용
+					  # 설정 옵션도 livenessProbe와 동일
+					
 	
 ```
 
