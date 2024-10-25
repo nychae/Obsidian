@@ -167,7 +167,7 @@ private void postorderRec(TreeNode root) {
 	3) **동적 데이터**: 데이터가 동적으로 추가되거나 삭제될 수 있는 경우에도 효과적
 
 - **단점**
-	\- 불균형: 자가 균형을 유지하지 않기 때문에, 삽입과 삭제 연산이 트리를 비균형하게 만들 수 있음. 이 경우, 검색/삽입/삭제 연산의 성능 저하 가능성 있음
+	\- **불균형**: 자가 균형을 유지하지 않기 때문에, 삽입과 삭제 연산이 트리를 비균형하게 만들 수 있음. 이 경우, 검색/삽입/삭제 연산의 성능 저하 가능성 있음
 		=> 대안으로 균형 이진 탐색 트리`(ex. AVL 트리, 레드-블랙 트리)`와 같은 자가 균형 이진 탐색 트리가 있음
 
 ``` java
@@ -258,5 +258,172 @@ public class Main {
 		System.out.println("값 40 검색 결과: " + bst.search(40)); // 출력: true 
 		System.out.println("값 25 검색 결과: " + bst.search(25)); // 출력: false
 	}
+}
+```
+
+
+##### 🏷️ AVL 트리
+- 자가 균형 이진 탐색 트리의 일종으로, 각 노드에서 왼쪽 서브트리와 오른쪽 서브트리의 높이 차이가 최대 1이 되도록 균형을 유지
+- 삽입, 삭제, 검색에서 모두 O(log n)의 성능을 보장
+- 높이 균형을 유지하는것이 핵심
+	-> 이를 위해 높이 정보를 저장하며, 삽입 또는 삭제시 트리가 불균형해지면 회전(Rotation) 연산 수행
+
+- 종류
+1) LL 회전
+	\- 왼쪽 자식의 왼쪽에 노드를 삽입했을 때, 트리를 오른쪽으로 회전 시킴
+2) RR 회전
+	\- 오른쪽 자식의 오른쪽에 노드를 삽입했을 때, 트리를 왼쪽으로 회전 시킴
+3) LR 회전
+	\- 왼쪽 자식의 오른쪽에 노드를 삽입했을 때, 먼저 왼쪽 자식에서 왼쪽 회전을 하고, 그 후 오른쪽으로 회전
+4) RL 회전
+	\- 오른쪽 자식의 왼쪽에 노드를 삽입했을 때, 먼저 오른쪽 자식에서 오른쪽 회전을 하고, 그 후 왼쪽으로 회전
+``` java
+class ACLTree {
+	class Node {
+		int key, height;
+		Node left, right;
+
+		Node(int d) {
+			key = d;
+			height = 1;
+		}
+	}
+
+	private Node root;
+
+	// 노드의 높이 구하기
+	int height(Node N) {
+		if(N == null) {
+			return 0;
+		}
+		return N.height;
+	}
+
+	// 최대값 반환
+	int max(int a, int b) {
+		return (a > b) ? a : b;
+	}
+
+	// 오른쪽 회전
+	Node rightRotate(Node y) {
+		Node x = y.left;
+		Node T2 = x.right;
+
+		// 회전
+		x.right = y;
+		y.left = T2;
+
+		// 높이
+		y.height = max(height(y.left), height(y.right)) + 1;
+		x.height = max(height(x.left), height(x.right)) + 1;
+
+		// 새로운 루트 반환
+		return x;
+	}
+
+	// 왼쪽 회전
+	Node leftRotate(Node x) {
+		Node y = x.right;
+		Node T2 = y.left;
+
+		// 회전
+		y.left = x;
+		x.right = T2;
+
+		// 높이
+		x.height = max(height(x.left), height(x.right)) + 1;
+		y.height = max(height(y.left), height(y.right)) + 1;
+
+		// 새로운 루트 반환
+		return y;
+	}
+
+	// 노드의 균형 인수(높이 차이) 계산
+	int getBalance(Node N) {
+		if(N == null) return 0;
+
+		return height(N.left) - height(N.right);
+	}
+
+	// AVL 트리에 노드 삽입
+	Node insert(Node node, int key) {
+		// 표준 BST 삽입
+		if (node == null) return (new Node(key));
+
+		if(key < node.key) {
+			node.left = insert(node.left, key);
+		} else if(key > node.key) {
+			node.right = insert(node.right, key);
+		} else {
+			// 중복키 허용안함
+			return node;
+		}
+
+		// 노드 높이 업데이트
+		node.height = 1 + max(height(node.left), height(node.right));
+
+		// 노드의 균형인수 계산
+		int balance = getBalance(node);
+
+		// LL 회전
+		if (balance > 1 && key < node.left.key) {
+			return rightRotate(node);
+		}
+
+		// RR 회전
+		if(balance < -1 && key > node.right.key) {
+			return leftRotate(node);
+		}
+
+		// LR 회전
+		if(balance > 1 && key > node.left.key) {
+			node.left = leftRotate(node.left);
+			return rightRotate(node);
+		}
+
+		// RL 회전
+		if(balance < -1 && key < node.right.key) {
+			node.right = rightRotate(node.right);
+			return leftRotate(node);
+		}
+
+		return node;
+	}
+
+	// 주어진 트리의 중위순회(In-order Traversal)
+	void inOrder(Node node) {
+		if(node != null) {
+			inOrder(node.left);
+			System.out.print(node.key + " ");
+			inOrder(node.right);
+		}
+	}
+
+	// 삽입을 위한 헬퍼 함수
+	public void insert(int key) {
+		root = insert(root, key);
+	}
+
+	// 트리 출력
+	public void inOrder() {
+		inOrder(root);
+	}
+
+	public static void main(String[] args) {
+		AVLTree tree = new AVLTree();
+
+		// 노드 삽입
+		tree.insert(10);
+		tree.insert(20);
+		tree.insert(30);
+		tree.insert(40);
+		tree.insert(50);
+		tree.insert(25);
+
+		tree.inOrder();
+	}
+
+	
+	
 }
 ```
