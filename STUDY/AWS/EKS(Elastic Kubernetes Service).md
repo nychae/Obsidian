@@ -173,3 +173,94 @@ Pod
 	\- <span style="background:#d3f8b6">간단한</span> 컨테이너 기반 애플리케이션 배포
 	\- 서버리스 환경에서의 컨테이너 실행
 	\- AWS 서비스와의 통합이 중요한 애플리케이션
+
+
+### 📌 AWS Load Balancer Controller
+---
+![](https://i.imgur.com/EA0UVwU.png)
+
+- Kubernetes 클러스터의 AWS Elastic Load Balancer를 관리
+- 컨트롤러를 사용해 클러스터 앱을 인터넷에 노출할 수 있음
+- 컨트롤러는 클러스터 Service 또는 Ingress 리소스를 가리키는 AWS 로드 밸런서를 프로비저닝
+- 클러스터의 여러 Pod를 기리키는 단일 IP 주소 또는 DNS 이름을 생성
+- Ingress 또는 Service리소스를 감시하고 이에 대한 응답으로 해당 AWS Elastic Load Balancing 리소스를 생성함
+	\- Ingress: AWS Application Load Balancer(ALB) 생성
+	\- Service: AWS Network Load Balancer(NLB) 생성
+
+##### 🏷️ ALB 생성 과정
+**단계 1: AWS Load Balancer Controller 설치**
+1. IAM 정책 생성
+	\- AWS Load Balancer Controller가 필요한 IAM 정책 생성
+``` sh
+curl -o iam_policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json
+aws iam create-policy \
+	--policy-name AWSLoadBalancerControllerIAMPolicy \
+	--policy-document file://iam_policy.json
+```
+
+2. IAM 역할 생성 및 연결
+	\- EKS 클러스터에 대한 IAM 역할을 생성하고 연결
+``` sh
+eksctl create iamserviceaccount \
+	--cluster <cluster-name> \
+	--namespace kube-system \
+	--name aws-load-balancer-controller \
+	--attach-policy-arn arn:aws:iam::<account-id>:policy/AWSLoadBalancerControllerIAMPolicy \
+	--approve
+```
+
+3. Helm 차트 추가 및 업데이트
+	\- AWS Load Balancer Controller를 설치하기 위한 Helm 차트를 추가하고 업데이트
+	`(Helm: Kubernetes 패키지 관리를 도와줌. (Node.js의 npm같은 역할))`
+``` sh
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+```
+
+4. Helm을 사용하여 Controller 설치
+``` sh
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=<cluster-name> -- set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
+```
+
+**단계 2: Ingress 리소스 설정**
+1. Ingress 리소스 정의
+	\- ingress.yaml 파일을 생성하고 다음 내용 추가
+``` yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+	name: example-ingress
+	namespace: default
+	annotations:
+		kubernetes.io/ingress.class: alb
+		alb.ingress.kubernetes.io/scheme: internet-facing
+		alb.ingress.kubernetes.io/target-type: ip
+spec:
+	rules:
+		- http:
+			paths:
+				-path: /*
+				 pathType: ImplementationSpecific
+				 backend:
+					 service:
+						 name: example-service
+						 port:
+							 number: 80
+```
+
+2. Ingress 리소스 적용
+``` sh
+kubectl apply -f alb-ingress.yaml
+```
+
+**단계 3: 확인 및 디버깅**
+1. ALB 상태 확인
+``` sh
+kubectl get ingress example-ingress -n default
+```
+
+2. 디버깅
+	\- 문제 발생시 AWS Load Balancer Controller 로그를 확인해 문제 해결
+``` sh
+kubectl logs -n kube-system deployment/aws-load-balancer-controller
+```
