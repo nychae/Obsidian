@@ -1,3 +1,4 @@
+# d.ts 파일
 - **Declaration File(선언 파일)** 로 불리며, TypeScript 코드에서 JavaScript 라이브러리를 사용할 때 타입 정보를 제공하는 역할
 
 

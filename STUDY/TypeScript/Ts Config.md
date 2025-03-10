@@ -1,3 +1,4 @@
+# Ts config
 - tsconfig.json은 TypeScript 프로젝트의 설정 파일로, 프로젝트 컴파일러 옵션 및 파일 포함/제외 규칙을 정의함
 
 ### 1. compilerOptions
